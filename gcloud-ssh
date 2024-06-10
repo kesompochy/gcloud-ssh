@@ -1,0 +1,33 @@
+#!/bin/bash
+
+PROJECT_ID=$1
+
+if [ -z "$PROJECT_ID" ]; then
+    PROJECTS=$(gcloud projects list --format="value(projectId)")
+
+    PROJECT_ID=$(echo "$PROJECTS" | fzf --delimiter="\t" --with-nth=1 --preview="echo {}" --header="Select a project:")
+fi
+
+if [ -z "$PROJECT_ID" ]; then
+    echo "No project selected."
+    exit 1
+fi
+
+echo "Selected project: $PROJECT_ID"
+
+INSTANCES=$(gcloud compute instances list --format="value(name,zone)" --project="$PROJECT_ID")
+
+echo "Select an instance to connect to:"
+
+SELECTED=$(echo "$INSTANCES" | fzf --delimiter="\t" --with-nth=1 --preview="echo {}" --header="Select an instance to connect to:")
+SELECTED_INSTANCE=$(echo "$SELECTED" | awk '{print $1}')
+SELECTED_ZONE=$(echo "$SELECTED" | awk '{print $2}')
+
+echo "Selected instance: $SELECTED_INSTANCE"
+echo "Selected zone: $SELECTED_ZONE"
+
+if [ -n "$SELECTED_INSTANCE" ]; then
+    gcloud compute ssh "$SELECTED_INSTANCE" --zone="$SELECTED_ZONE" --tunnel-through-iap --project="$PROJECT_ID" --ssh-key-expire-after=30m
+else
+    echo "No instance selected."
+fi
